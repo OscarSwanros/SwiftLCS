@@ -30,29 +30,29 @@ An extension of `Diff`, which adds support for `Foundation` types such as `NSInd
 public extension Diff {
     
     /// The indexes whose corresponding values in the old collection are in the LCS.
-    public var commonIndexSet: NSIndexSet {
+    public var commonIndexSet: IndexSet {
         return self.toIndexSet(self.common)
     }
     
     /// The indexes whose corresponding values in the new collection are not in the LCS.
-    public var addedIndexSet: NSIndexSet {
+    public var addedIndexSet: IndexSet {
         return self.toIndexSet(self.added)
     }
     
     /// The indexes whose corresponding values in the old collection are not in the LCS.
-    public var removedIndexSet: NSIndexSet {
+    public var removedIndexSet: IndexSet {
         return self.toIndexSet(self.removed)
     }
     
     // MARK: - Private
     
-    private func toIndexSet(diff: (indexes: [Index], startIndex: Index)) -> NSIndexSet {
+    fileprivate func toIndexSet(_ diff: (indexes: [Index], startIndex: Index)) -> IndexSet {
         let indexSet = NSMutableIndexSet()
         diff.indexes.forEach { index in
-            indexSet.addIndex(Int(diff.startIndex.distanceTo(index).toIntMax()))
+            indexSet.add(Int(<#T##BidirectionalCollection corresponding to your index##BidirectionalCollection#>.distance(from: diff.startIndex, to: index).toIntMax()))
         }
         
-        return indexSet
+        return indexSet as IndexSet
     }
     
 }

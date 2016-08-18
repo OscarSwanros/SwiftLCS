@@ -25,7 +25,7 @@
 /**
 A generic struct that represents a diff between two collections.
 */
-public struct Diff<Index: BidirectionalIndexType> {
+public struct Diff<Index: Comparable> {
     
     /// The indexes whose corresponding values in the old collection are in the LCS.
     public var commonIndexes: [Index] {
@@ -47,11 +47,11 @@ public struct Diff<Index: BidirectionalIndexType> {
     internal let removed: (indexes: [Index], startIndex: Index)
     
     /// Construct the `Diff` between two given collections.
-    public init<C: CollectionType where C.Index == Index, C.Generator.Element: Equatable>(_ old: C, _ new: C) {
+    public init<C: Collection>(_ old: C, _ new: C) where C.Index == Index, C.Iterator.Element: Equatable {
         self = old.diff(new)
     }
     
-    private init<C: CollectionType where C.Index == Index>(common: ([Index], C), added: ([Index], C), removed: ([Index], C)) {
+    fileprivate init<C: Collection>(common: ([Index], C), added: ([Index], C), removed: ([Index], C)) where C.Index == Index {
         self.common = (indexes: common.0, startIndex: common.1.startIndex)
         self.added = (indexes: added.0, startIndex: added.1.startIndex)
         self.removed = (indexes: removed.0, startIndex: removed.1.startIndex)
@@ -62,7 +62,7 @@ public struct Diff<Index: BidirectionalIndexType> {
 /**
 An extension of `CollectionType`, which calculates the diff between two collections.
 */
-public extension CollectionType where Generator.Element: Equatable, Index: BidirectionalIndexType {
+public extension Collection where Iterator.Element: Equatable, Index: Comparable {
 
     /**
     Returns the diff between two collections.
@@ -72,10 +72,10 @@ public extension CollectionType where Generator.Element: Equatable, Index: Bidir
     - returns: The diff between the receiver and the given collection.
     */
     @warn_unused_result
-    public func diff(collection: Self) -> Diff<Index> {
+    public func diff(_ collection: Self) -> Diff<Index> {
         var lengths = Array2D(rows: Int(self.count.toIntMax()) + 1, columns: Int(collection.count.toIntMax()) + 1, repeatedValue: 0)
-        for i in (self.startIndexWrapper..<self.endIndexWrapper).reverse() {
-            for j in (collection.startIndexWrapper..<collection.endIndexWrapper).reverse() {
+        for i in (self.startIndexWrapper..<self.endIndexWrapper).reversed() {
+            for j in (collection.startIndexWrapper..<collection.endIndexWrapper).reversed() {
                 if self[i] == collection[j] {
                     lengths[i, j] = lengths[i+1, j+1] + 1
                 } else {
@@ -100,7 +100,7 @@ public extension CollectionType where Generator.Element: Equatable, Index: Bidir
             }
         }
 
-        let removedIndexes = self.map({ self.indexOf($0)! }).filter({ !commonIndexes.contains($0) })
+        let removedIndexes = self.map({ self.index(of: $0)! }).filter({ !commonIndexes.contains($0) })
 
         var addedIndexes = [Index]()
         var commonObjects = self.objectsAtIndexes(commonIndexes)
@@ -108,7 +108,7 @@ public extension CollectionType where Generator.Element: Equatable, Index: Bidir
             if commonObjects.first == value {
                 commonObjects.removeFirst()
             } else {
-                addedIndexes.append(collection.indexOf(value)!)
+                addedIndexes.append(collection.index(of: value)!)
             }
         }
 
@@ -120,7 +120,7 @@ public extension CollectionType where Generator.Element: Equatable, Index: Bidir
 /**
 An extension of `RangeReplaceableCollectionType`, which calculates the longest common subsequence between two collections.
 */
-public extension RangeReplaceableCollectionType where Generator.Element: Equatable, Index: BidirectionalIndexType {
+public extension RangeReplaceableCollection where Iterator.Element: Equatable, Index: Comparable {
 
     /**
     Returns the longest common subsequence between two collections.
@@ -129,7 +129,7 @@ public extension RangeReplaceableCollectionType where Generator.Element: Equatab
     - returns: The longest common subsequence between the receiver and the given collection.
     */
     @warn_unused_result
-    public func longestCommonSubsequence(collection: Self) -> Self {
+    public func longestCommonSubsequence(_ collection: Self) -> Self {
         var subsequence = Self()
 
         let diff = self.diff(collection)
@@ -154,7 +154,7 @@ public extension String {
     - returns: The longest common subsequence between the receiver and the given string.
     */
     @warn_unused_result
-    public func longestCommonSubsequence(string: String) -> String {
+    public func longestCommonSubsequence(_ string: String) -> String {
         return String(self.characters.longestCommonSubsequence(string.characters))
     }
 
@@ -164,7 +164,7 @@ public extension String {
 
 private struct Array2D<Element> {
 
-    private var matrix: [[Element]]
+    fileprivate var matrix: [[Element]]
     var rows: Int {
         return self.matrix.count
     }
@@ -177,7 +177,7 @@ private struct Array2D<Element> {
     }
 
     init(rows: Int, columns: Int, repeatedValue: Element) {
-        self.matrix = Array(count: rows, repeatedValue: Array(count: columns, repeatedValue: repeatedValue))
+        self.matrix = Array(repeating: Array(repeating: repeatedValue, count: columns), count: rows)
     }
 
     subscript(row: Int, column: Int) -> Element {
@@ -191,10 +191,10 @@ private struct Array2D<Element> {
 
 }
 
-private struct IndexWrapper<IndexType: BidirectionalIndexType>: BidirectionalIndexType, Comparable {
+private struct IndexWrapper<IndexType: Comparable>: Comparable {
 
-    private(set) var firstIndex: Int
-    private(set) var secondIndex: IndexType
+    fileprivate(set) var firstIndex: Int
+    fileprivate(set) var secondIndex: IndexType
 
     init(_ firstIndex: Int, _ secondIndex: IndexType) {
         self.firstIndex = firstIndex
@@ -202,11 +202,11 @@ private struct IndexWrapper<IndexType: BidirectionalIndexType>: BidirectionalInd
     }
 
     func successor() -> IndexWrapper {
-        return IndexWrapper(self.firstIndex.successor(), self.secondIndex.successor())
+        return IndexWrapper((self.firstIndex + 1), <#T##BidirectionalCollection corresponding to your index##BidirectionalCollection#>.index(after: self.secondIndex))
     }
 
     func predecessor() -> IndexWrapper {
-        return IndexWrapper(self.firstIndex.predecessor(), self.secondIndex.predecessor())
+        return IndexWrapper((self.firstIndex - 1), <#T##BidirectionalCollection corresponding to your index##BidirectionalCollection#>.index(before: self.secondIndex))
     }
 
 }
@@ -268,7 +268,7 @@ private extension Array2D {
 
 }
 
-private extension CollectionType where Index: BidirectionalIndexType {
+private extension Collection where Index: Comparable {
 
     var startIndexWrapper: IndexWrapper<Index> {
         return IndexWrapper(0, self.startIndex)
@@ -278,16 +278,16 @@ private extension CollectionType where Index: BidirectionalIndexType {
         return IndexWrapper(Int(self.count.toIntMax()), self.endIndex)
     }
 
-    subscript(index: IndexWrapper<Index>) -> Generator.Element {
+    subscript(index: IndexWrapper<Index>) -> Iterator.Element {
         return self[index.secondIndex]
     }
 
 }
 
-private extension CollectionType where Generator.Element : Equatable {
+private extension Collection where Iterator.Element : Equatable {
 
-    func objectsAtIndexes(indexes: [Index]) -> [Generator.Element] {
-        return self.filter({ indexes.contains(self.indexOf($0)!) })
+    func objectsAtIndexes(_ indexes: [Index]) -> [Iterator.Element] {
+        return self.filter({ indexes.contains(self.index(of: $0)!) })
     }
 
 }
@@ -305,9 +305,9 @@ private extension Array {
 
 }
 
-private extension Array where Element: BidirectionalIndexType {
+private extension Array where Element: Comparable {
     
-    mutating func append(index: IndexWrapper<Element>) {
+    mutating func append(_ index: IndexWrapper<Element>) {
         self.append(index.secondIndex)
     }
     
